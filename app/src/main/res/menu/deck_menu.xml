@@ -1,0 +1,17 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/menu_delete"
+        android:title="Delete" />
+    <item
+        android:id="@+id/menu_browse"
+        android:title="Browse" />
+    <item
+        android:id="@+id/menu_rename"
+        android:title="Rename" />
+    <item
+        android:id="@+id/menu_add"
+        android:title="Add" />
+    <item
+        android:id="@+id/menu_custom_study"
+        android:title="Custom Study" />
+</menu>

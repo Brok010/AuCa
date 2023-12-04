@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginStart="16dp"
+    android:layout_marginTop="8dp"
+    android:layout_marginEnd="16dp"
+    android:layout_weight="3"
+    android:background="#AEA5A5"
+    android:padding="8dp"
+    android:orientation="vertical"
+    android:id="@+id/relative_layout"
+    android:clickable="true">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tv_label_deckname"
+        android:text="Deckname:"
+        android:textSize="14dp"/>
+
+    <TextView
+        android:id="@+id/tv_label_card_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/tv_label_deckname"
+        android:text="Card count:"
+        android:textSize="14dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tv_value_deckname"
+        android:layout_alignParentEnd="true"
+        android:text="Value Deckname"
+        android:textSize="14dp"/>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/tv_value_card_count"
+        android:layout_alignParentEnd="true"
+        android:layout_below="@id/tv_value_deckname"
+        android:text="Value card count"
+        android:textSize="14dp"/>
+
+</RelativeLayout>
