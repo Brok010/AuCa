@@ -3,6 +3,7 @@ package com.example.logindb
 import android.annotation.SuppressLint
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import android.widget.Toast
@@ -34,7 +35,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             "$COL_DECK_ID_FK INTEGER, " +
             "$COL_CARD_USER_ID_FK INTEGER, " +
             "$COL_CARD_TIMEOUT INTEGER, " +
-            "$COL_CARD_COEFFICIENT REAL, " +  // Assuming a REAL data type for coefficient
+            "$COL_CARD_LAST_UPDATE_TIME INTEGER, " +
+            "$COL_CARD_COEFFICIENT REAL, " +
             "FOREIGN KEY($COL_DECK_ID_FK) REFERENCES $TABLE_DECK($COL_DECK_ID), " +
             "FOREIGN KEY($COL_CARD_USER_ID_FK) REFERENCES $TABLE_USER($COL_USER_ID))"
 
@@ -66,6 +68,71 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         db.insert(TABLE_USER, null, value)
         db.close()
     }
+
+    fun getAllCards(userId: Int): List<Card> {
+        val cards = mutableListOf<Card>()
+
+        val query = "SELECT * FROM $TABLE_CARD " +
+                "INNER JOIN $TABLE_DECK ON $TABLE_CARD.$COL_DECK_ID_FK = $TABLE_DECK.$COL_DECK_ID " +
+                "WHERE $TABLE_DECK.$COL_USER_ID_FK = ?"
+
+        val selectionArgs = arrayOf(userId.toString())
+
+        val cursor = readableDatabase.rawQuery(query, selectionArgs)
+
+        try {
+            while (cursor.moveToNext()) {
+                val card = createCardFromCursor(cursor)
+                cards.add(card)
+            }
+        } finally {
+            cursor.close()
+        }
+
+        return cards
+    }
+
+    @SuppressLint("Range")
+    private fun createCardFromCursor(cursor: Cursor): Card {
+        return Card(
+            userId = cursor.getInt(cursor.getColumnIndex(COL_CARD_USER_ID_FK)),
+            deckId = cursor.getInt(cursor.getColumnIndex(COL_DECK_ID_FK)),
+            id = cursor.getInt(cursor.getColumnIndex(COL_CARD_ID)),
+//            cardTop = cursor.getBlob(cursor.getColumnIndex(COL_CARD_TOP)),
+//            cardBottom = cursor.getBlob(cursor.getColumnIndex(COL_CARD_BOTTOM)),
+            timeout = cursor.getLong(cursor.getColumnIndex(COL_CARD_TIMEOUT)),
+            lastUpdateTime = cursor.getLong(cursor.getColumnIndex(COL_CARD_LAST_UPDATE_TIME))
+//            coefficient = cursor.getDouble(cursor.getColumnIndex(COL_CARD_COEFFICIENT))
+        )
+    }
+
+    fun updateCardTimeouts(userId: Int) {
+        val cards = getAllCards(userId)
+        val currentTimeSeconds = System.currentTimeMillis() / 1000
+
+        for (card in cards) {
+            val elapsedTimeSeconds = (currentTimeSeconds - card.lastUpdateTime).toInt()
+
+            // Update the timeout based on the elapsed time
+            var updatedTimeout = card.timeout - elapsedTimeSeconds
+            if (updatedTimeout < 0) {
+                updatedTimeout = 0
+            }
+            updateCardTimeout(card.id, updatedTimeout, currentTimeSeconds)
+        }
+    }
+
+    private fun updateCardTimeout(cardId: Int, newTimeout: Long, newLastUpdateTime: Long) {
+        val contentValues = ContentValues()
+        contentValues.put(COL_CARD_TIMEOUT, newTimeout)
+        contentValues.put(COL_CARD_LAST_UPDATE_TIME, newLastUpdateTime)
+
+        val whereClause = "$COL_CARD_ID = ?"
+        val whereArgs = arrayOf(cardId.toString())
+
+        writableDatabase.update(TABLE_CARD, contentValues, whereClause, whereArgs)
+    }
+
     @SuppressLint("Range")
     fun getDeckName(userId: Int, deckId: Int): String{
         val db = this.readableDatabase
@@ -199,9 +266,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 val cardTop = cursor.getString(cursor.getColumnIndex(COL_CARD_TOP))
                 val cardBottom = cursor.getString(cursor.getColumnIndex(COL_CARD_BOTTOM))
                 val cardTimeout = cursor.getLong(cursor.getColumnIndex(COL_CARD_TIMEOUT))
+                val cardLastUpdateTime = cursor.getLong(cursor.getColumnIndex(COL_CARD_LAST_UPDATE_TIME))
                 val cardCoefficient = cursor.getDouble(cursor.getColumnIndex(COL_CARD_COEFFICIENT))
 
-                val card = Card(userId, deckId, cardId, cardTop, cardBottom, cardTimeout, cardCoefficient)
+                val card = Card(userId, deckId, cardId, cardTop, cardBottom, cardTimeout, cardLastUpdateTime, cardCoefficient)
                 cards.add(card)
             }
         } catch (e: Exception) {
@@ -378,33 +446,23 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     fun updateCoefficient(userId: Int, deckId: Int, cardId: Int, feedback: String) {
-        val db = this.writableDatabase
+        val card = getCardContents(userId, deckId, cardId)
 
-        try {
-            val card = getCardContents(userId, deckId, cardId)
-
-            when (feedback) {
-                "Good" -> card.coefficient *= 3.0
-                "Avg"  -> card.coefficient /= 2.0
-                "Bad"  -> card.coefficient *= 0.1667
-            }
-
-            val contentValues = ContentValues()
-            contentValues.put(COL_CARD_COEFFICIENT, card.coefficient)
-
-            db.update(
-                TABLE_CARD,
-                contentValues,
-                "$COL_CARD_USER_ID_FK = ? AND $COL_DECK_ID_FK = ? AND $COL_CARD_ID = ?",
-                arrayOf(userId.toString(), deckId.toString(), cardId.toString())
-            )
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            db.close()
+        when (feedback) {
+            "Good" -> card.coefficient *= 3.0
+            "Avg"  -> card.coefficient /= 2.0
+            "Bad"  -> card.coefficient *= 0.1667
         }
+
+        val contentValues = ContentValues()
+        contentValues.put(COL_CARD_COEFFICIENT, card.coefficient)
+
+        val whereClause = "$COL_CARD_ID = ? AND $COL_DECK_ID_FK = ? AND $COL_CARD_USER_ID_FK = ?"
+        val whereArgs = arrayOf(cardId.toString(), deckId.toString(), userId.toString())
+
+        writableDatabase.update(TABLE_CARD, contentValues, whereClause, whereArgs)
     }
+
 
 
     @SuppressLint("Range")
@@ -438,64 +496,29 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return card
     }
 
+    // add timeout after interacting with a card
     fun updateTimeout(userId: Int, deckId: Int, cardId: Int, feedback: String){
-        val db = this.writableDatabase
-        var timeOut: Long
-
-        try {
-            val card = getCardContents(userId, deckId, cardId)
-
-            timeOut = when (feedback) {
-                "Good" -> calculateTimeout(card.coefficient, 1.0)
-                "Avg"  -> calculateTimeout(card.coefficient, 0.5)
-                "Bad"  -> calculateTimeout(card.coefficient, 0.2)
-                else -> 0
-            }
-
-            val values = ContentValues().apply {
-                put(COL_CARD_TIMEOUT, timeOut)
-            }
-
-            val whereClause = "$COL_CARD_USER_ID_FK = ? AND $COL_DECK_ID_FK = ? AND $COL_CARD_ID = ?"
-            val whereArgs = arrayOf(userId.toString(), deckId.toString(), cardId.toString())
-
-            db.update(TABLE_CARD, values, whereClause, whereArgs)
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            db.close()
+        val card = getCardContents(userId, deckId, cardId)
+        val timeOut = when (feedback) {
+            "Good" -> calculateTimeout(card.coefficient, 1.0)
+            "Avg"  -> calculateTimeout(card.coefficient, 0.5)
+            "Bad"  -> calculateTimeout(card.coefficient, 0.2)
+            else -> 0
         }
+
+        val contentValues = ContentValues()
+        contentValues.put(COL_CARD_TIMEOUT, timeOut)
+
+        val whereClause = "$COL_CARD_ID = ? AND $COL_DECK_ID_FK = ? AND $COL_CARD_USER_ID_FK = ?"
+        val whereArgs = arrayOf(cardId.toString(), deckId.toString(), userId.toString())
+
+        writableDatabase.update(TABLE_CARD, contentValues, whereClause, whereArgs)
     }
 
     private fun calculateTimeout(coefficient: Double, factor: Double): Long {
         val secondsInDay = 24 * 60 * 60
         return (coefficient * factor * secondsInDay).toLong()
     }
-
-    @SuppressLint("Range")
-    fun getUpdatedTimeout(userId: Int, deckId: Int, cardId: Int): Long {
-        val db = this.readableDatabase
-        var updatedTimeout: Long = 0
-
-        val query = "SELECT $COL_CARD_TIMEOUT FROM $TABLE_CARD WHERE $COL_CARD_USER_ID_FK = ? AND $COL_DECK_ID_FK = ? AND $COL_CARD_ID = ?"
-        val selectionArgs = arrayOf(userId.toString(), deckId.toString(), cardId.toString())
-
-        try {
-            db.rawQuery(query, selectionArgs).use { cursor ->
-                if (cursor.moveToFirst()) {
-                    updatedTimeout = cursor.getLong(cursor.getColumnIndex(COL_CARD_TIMEOUT))
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            db.close()
-        }
-
-        return updatedTimeout
-    }
-
 
     @SuppressLint("Range")
     fun getCardContents(userId: Int, deckId: Int, cardId: Int): Card {
@@ -551,6 +574,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val COL_CARD_BOTTOM = "card_bottom"
         private const val COL_CARD_COEFFICIENT = "card_coefficient"
         private const val COL_CARD_TIMEOUT = "card_time_out"
+        private const val COL_CARD_LAST_UPDATE_TIME = "card_last_update_time"
         private const val COL_DECK_ID_FK = "card_deck_id_fk"
         private const val COL_CARD_USER_ID_FK = "card_user_id_fk"
     }

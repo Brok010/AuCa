@@ -7,10 +7,9 @@ import android.widget.Button
 import androidx.recyclerview.widget.DefaultItemAnimator
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.logindb.databinding.ActivityCardsBinding
-import com.example.logindb.databinding.ActivityDeckBinding
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 
-class CardActivity : AppCompatActivity() {
+class BrowseCardActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCardsBinding
     private lateinit var db:DatabaseHelper
     private lateinit var cardAdapter: CardAdapter
@@ -34,19 +33,19 @@ class CardActivity : AppCompatActivity() {
 
         //body - deck table
         var deckName = db.getDeckName(userId, deckId)
-        binding.tvPrimaryAccount.text = "Deck: $deckName"
+        binding.tvPrimaryAccount.text = "$deckName"
 
         cardAdapter = CardAdapter(mutableListOf(), userId, deckId, db, this)
         binding.recyclerView.apply {
-            layoutManager = LinearLayoutManager(this@CardActivity)
+            layoutManager = LinearLayoutManager(this@BrowseCardActivity)
             itemAnimator = DefaultItemAnimator()
             setHasFixedSize(true)
             adapter = cardAdapter
         }
         // Load the initial card list
+        db.updateCardTimeouts(userId)
         val initialCardList = db.getAllCards(userId, deckId)
         cardAdapter.updateData(initialCardList)
-
 
         //add button
         val addCardButton: FloatingActionButton = findViewById(R.id.Add_card_bt)
@@ -65,6 +64,7 @@ class CardActivity : AppCompatActivity() {
     }
     override fun onResume() {
         super.onResume()
+        db.updateCardTimeouts(userId)
         val updatedCardList = db.getAllCards(userId, deckId)
         cardAdapter.updateData(updatedCardList)
     }

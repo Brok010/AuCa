@@ -17,6 +17,7 @@ class DeckActivity : AppCompatActivity() {
     private lateinit var binding: ActivityDeckBinding
     private lateinit var db:DatabaseHelper
     private lateinit var deckAdapter: DeckAdapter
+    private var userId: Long = -1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,9 +26,9 @@ class DeckActivity : AppCompatActivity() {
 
         //header
         val extraUsername = intent.getStringExtra("USERNAME_DATA")
-        val userId = intent.getLongExtra("USER_ID", -1)
+        userId = intent.getLongExtra("USER_ID", -1)
         //body - deck table
-        binding.tvPrimaryAccount.text = "Welcome $extraUsername"
+        binding.tvPrimaryAccount.text = "$extraUsername"
         db = DatabaseHelper(this)
         deckAdapter = DeckAdapter(mutableListOf(), userId, db, this)
         binding.recyclerView.apply {
@@ -36,6 +37,8 @@ class DeckActivity : AppCompatActivity() {
             setHasFixedSize(true)
             adapter = deckAdapter
         }
+        db.updateCardTimeouts(userId.toInt())
+
         // Load the initial deck list
         val initialDeckList = db.getAllDecks(userId)
         deckAdapter.updateData(initialDeckList)
@@ -54,6 +57,7 @@ class DeckActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        db.updateCardTimeouts(userId.toInt())
         val userId = intent.getLongExtra("USER_ID", -1)
         val updatedDeckList = db.getAllDecks(userId)
         deckAdapter.updateData(updatedDeckList)
@@ -97,8 +101,8 @@ class DeckActivity : AppCompatActivity() {
         intent.putExtra("USER_ID", userId.toString())
         startActivity(intent)
     }
-    fun startCardActivity(deckId: Int, userId: Long){
-        val intent = Intent(this, CardActivity::class.java)
+    fun startBrowseCardActivity(deckId: Int, userId: Long){
+        val intent = Intent(this, BrowseCardActivity::class.java)
         intent.putExtra("DECK_ID", deckId.toString())
         intent.putExtra("USER_ID", userId.toString())
         startActivity(intent)

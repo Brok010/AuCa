@@ -92,6 +92,7 @@ class CardAddActivity : AppCompatActivity() {
             db.incrementCardCount(deckId)
 
             //exit activity last
+            db.updateCardTimeouts(userId)
             finish()
         }
 

@@ -13,7 +13,7 @@ class CardAdapter(private val cardList: MutableList<Card>,
                   private val userId: Int,
                   private val deckId: Int,
                   private val db: DatabaseHelper,
-                  private val cardActivity: CardActivity
+                  private val browseCardActivity: BrowseCardActivity
 
 ) : RecyclerView.Adapter<CardAdapter.CardViewHolder>() {
     
@@ -58,7 +58,11 @@ class CardAdapter(private val cardList: MutableList<Card>,
                 else -> throw IllegalArgumentException("Unsupported cardTop type")
             }
 
-            tvCardCount.text = db.getCardTimeOut(card.id, deckId, userId).toString()
+            val cardTimeoutInSeconds = db.getCardTimeOut(card.id, deckId, userId)
+            val cardTimeoutInHours = cardTimeoutInSeconds / 3600.0
+
+            val formattedTimeout = String.format("%.2f", cardTimeoutInHours)
+            tvCardCount.text = formattedTimeout
         }
     }
     private fun showPopupMenu(view: View, card: Card, userId: Int, deckId: Int) {

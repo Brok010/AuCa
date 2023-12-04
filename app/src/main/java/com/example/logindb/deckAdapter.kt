@@ -40,7 +40,13 @@ class DeckAdapter(private val deckList: MutableList<Deck>,
         }
 
         holder.itemView.setOnClickListener {
-            deckActivity.startStudyActivity(currentDeck.id, userId)
+            if (db.getAllCards(userId.toInt(), currentDeck.id).isEmpty()){
+                deckActivity.startAddCardActivity(currentDeck.id, userId)
+            } else if (db.getReadyCardCount(currentDeck.id) > 0) {
+                deckActivity.startStudyActivity(currentDeck.id, userId)
+            }else{
+                deckActivity.startBrowseCardActivity(currentDeck.id, userId)
+            }
         }
     }
 
@@ -76,7 +82,7 @@ class DeckAdapter(private val deckList: MutableList<Deck>,
                     true
                 }
                 R.id.menu_browse -> {
-                    deckActivity.startCardActivity(deck.id, userId)
+                    deckActivity.startBrowseCardActivity(deck.id, userId)
                     true
                 }
                 R.id.menu_rename -> {

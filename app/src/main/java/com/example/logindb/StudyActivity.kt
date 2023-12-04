@@ -38,28 +38,31 @@ class StudyActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.btnGood).setOnClickListener {
-            db.updateTimeout(userId, deckId, cardId, "Good")
-            db.updateCoefficient(userId, deckId, cardId, "Good")
-            cardId = displayTopCard(userId, deckId)
+            cardId =  displayAnotherCardSequence(userId, deckId, cardId, "Good")
         }
 
         findViewById<Button>(R.id.btnAverage).setOnClickListener {
-            db.updateTimeout(userId, deckId, cardId, "Avg")
-            db.updateCoefficient(userId, deckId, cardId, "Avg")
-            cardId = displayTopCard(userId, deckId)
+            cardId = displayAnotherCardSequence(userId, deckId, cardId, "Avg")
         }
 
         findViewById<Button>(R.id.btnBad).setOnClickListener {
-            db.updateTimeout(userId, deckId, cardId, "Bad")
-            db.updateCoefficient(userId, deckId, cardId, "Bad")
-            cardId = displayTopCard(userId, deckId)
+            cardId = displayAnotherCardSequence(userId, deckId, cardId, "Bad")
         }
 
         findViewById<Button>(R.id.btnQuit).setOnClickListener {
             finish()
         }
     }
-
+    private fun displayAnotherCardSequence(userId: Int, deckId: Int, cardId: Int, feedback: String): Int{
+        db.updateTimeout(userId, deckId, cardId, feedback)
+        db.updateCoefficient(userId, deckId, cardId, feedback)
+        if (db.getReadyCardCount(deckId) > 0) {
+            return displayTopCard(userId, deckId)
+        }else{
+            finish()
+            return 0
+        }
+    }
     private fun displayTopCard(userId: Int, deckId: Int) : Int{
         val db = DatabaseHelper(this) // Initialize the database helper
         var cardId = -1
