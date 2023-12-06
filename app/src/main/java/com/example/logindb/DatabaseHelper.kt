@@ -180,13 +180,22 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return readyCardCount
     }
 
-    fun deleteCard(cardId: Int, deckId: Int, userId: Int) {
-        val db = this.writableDatabase
+    fun deleteCard(card: Card, deckId: Int, userId: Int) {
+        val pathTop = card.cardTopFilePath
+        val pathBottom = card.cardBottomFilePath
 
+        if (pathTop.isNotEmpty() && pathTop != "") {
+            deleteFile(pathTop)
+        }
+        if (pathBottom.isNotEmpty() && pathBottom != "" ) {
+            deleteFile(pathBottom)
+        }
+
+        val db = this.writableDatabase
         try {
             // Define the WHERE clause to match the cardId, deckId, and userId
             val whereClause = "$COL_CARD_ID=? AND $COL_DECK_ID_FK=? AND $COL_CARD_USER_ID_FK=?"
-            val whereArgs = arrayOf(cardId.toString(), deckId.toString(), userId.toString())
+            val whereArgs = arrayOf(card.id.toString(), deckId.toString(), userId.toString())
 
             // Delete the card from the database
             db.delete(TABLE_CARD, whereClause, whereArgs)
@@ -195,6 +204,17 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
             e.printStackTrace()
         } finally {
             db.close()
+        }
+    }
+
+   private fun deleteFile(filePath: String) {
+        try {
+            val file = File(filePath)
+            if (file.exists()) {
+                file.delete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -324,22 +344,16 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
     }
 
     fun removeDeck(userId: Long, deckId: Int) {
-        writableDatabase.use { db ->
-            // Before removing the deck, remove associated cards
-            removeCards(deckId, db)
-
-            // Remove the deck
-            val whereClause = "$COL_DECK_ID = ? AND $COL_USER_ID_FK = ?"
-            val whereArgs = arrayOf(deckId.toString(), userId.toString())
-            db.delete(TABLE_DECK, whereClause, whereArgs)
+        var cards = getAllCards(userId.toInt(), deckId)
+        for (Card in cards) {
+            deleteCard(Card, userId.toInt(), deckId)
         }
-    }
 
-    fun removeCards(deckId: Int, db: SQLiteDatabase) {
-        // Remove cards associated with the given deck
-        val whereClause = "$COL_DECK_ID_FK = ?"
-        val whereArgs = arrayOf(deckId.toString())
-        db.delete(TABLE_CARD, whereClause, whereArgs)
+        val db = this.writableDatabase
+        val whereClause = "$COL_DECK_ID = ? AND $COL_USER_ID_FK = ?"
+        val whereArgs = arrayOf(deckId.toString(), userId.toString())
+        db.delete(TABLE_DECK, whereClause, whereArgs)
+        db.close()
     }
 
     fun renameDeck(newDeckName: String, userId: Long, deckId: Int) {
@@ -461,7 +475,7 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
 
     @SuppressLint("Range")
-    // gets first? card of the deck that has timeout on zero
+    // gets a card of the deck that has timeout on zero
     fun getCardContents(userId: Int, deckId: Int): Card {
         val db = this.readableDatabase
         var card = Card()
@@ -478,6 +492,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                         id = cursor.getInt(cursor.getColumnIndex(COL_CARD_ID)),
                         cardTop = cursor.getString(cursor.getColumnIndex(COL_CARD_TOP)),
                         cardBottom = cursor.getString(cursor.getColumnIndex(COL_CARD_BOTTOM)),
+                        cardTopFilePath = cursor.getString(cursor.getColumnIndex(COL_CARD_TOP_FILE_PATH)),
+                        cardBottomFilePath = cursor.getString(cursor.getColumnIndex(COL_CARD_BOTTOM_FILE_PATH)),
                         coefficient = cursor.getDouble(cursor.getColumnIndex(COL_CARD_COEFFICIENT)),
                         timeout = cursor.getLong(cursor.getColumnIndex(COL_CARD_TIMEOUT))
                     )
@@ -532,6 +548,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                         id = cursor.getInt(cursor.getColumnIndex(COL_CARD_ID)),
                         cardTop = cursor.getString(cursor.getColumnIndex(COL_CARD_TOP)),
                         cardBottom = cursor.getString(cursor.getColumnIndex(COL_CARD_BOTTOM)),
+                        cardTopFilePath = cursor.getString(cursor.getColumnIndex(COL_CARD_TOP_FILE_PATH)),
+                        cardBottomFilePath = cursor.getString(cursor.getColumnIndex(COL_CARD_BOTTOM_FILE_PATH)),
                         coefficient = cursor.getDouble(cursor.getColumnIndex(COL_CARD_COEFFICIENT)),
                         timeout = cursor.getLong(cursor.getColumnIndex(COL_CARD_TIMEOUT))
                     )

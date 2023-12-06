@@ -1,38 +1,57 @@
 <!-- activity_card_display.xml -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <FrameLayout
+    <LinearLayout
         android:id="@+id/cardTopContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="6">
+        android:layout_weight="6"
+        android:gravity="center"
+        android:clickable="true"
+        android:orientation="vertical">
+
         <TextView
             android:id="@+id/top_card_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:textSize="16sp"
-            android:text="sdadsads"
-            android:clickable="true"/>
-    </FrameLayout>
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="16sp" />
 
-    <FrameLayout
+        <ImageButton
+            android:id="@+id/play_bt_top"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:srcCompat="@android:drawable/ic_media_play" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/cardBottomContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="6">
+        android:layout_weight="6"
+        android:gravity="center"
+        android:clickable="true"
+        android:orientation="vertical">
+
         <TextView
             android:id="@+id/bottom_card_view"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:textSize="16sp"
-            android:gravity="center"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:text=""
-            android:clickable="true"/>
-    </FrameLayout>
+            android:textSize="16sp" />
+
+        <ImageButton
+            android:id="@+id/play_bt_bot"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            app:srcCompat="@android:drawable/ic_media_play" />
+    </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"

@@ -52,17 +52,17 @@ class CardAdapter(private val cardList: MutableList<Card>,
         private val tvCardCount: TextView = itemView.findViewById(R.id.tv_value_card_time_out)
 
         fun bind(card: Card) {
-//            when (card.cardTop) {
-//                is String -> tvCardTop.text = card.cardTop.toString()
-//                is File -> tvCardTop.text = "Audio File"
-//                else -> throw IllegalArgumentException("Unsupported cardTop type")
-//            }
-//
-//            val cardTimeoutInSeconds = db.getCardTimeOut(card.id, deckId, userId)
-//            val cardTimeoutInHours = cardTimeoutInSeconds / 3600.0
-//
-//            val formattedTimeout = String.format("%.2f", cardTimeoutInHours)
-//            tvCardCount.text = formattedTimeout
+            if (card.cardTop == "") {
+                tvCardTop.text = "Audio file"
+            }else if (card.cardTop.isNotEmpty()){
+                tvCardTop.text = "${card.cardTop}"
+            }else throw IllegalStateException("Invalid state for cardTop")
+
+            val cardTimeoutInSeconds = db.getCardTimeOut(card.id, deckId, userId)
+            val cardTimeoutInHours = cardTimeoutInSeconds / 3600.0
+
+            val formattedTimeout = String.format("%.2f", cardTimeoutInHours)
+            tvCardCount.text = formattedTimeout
         }
     }
     private fun showPopupMenu(view: View, card: Card, userId: Int, deckId: Int) {
@@ -75,7 +75,7 @@ class CardAdapter(private val cardList: MutableList<Card>,
         popupMenu.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.menu_delete -> {
-                    db.deleteCard(cardId, deckId, userId)
+                    db.deleteCard(card, deckId, userId)
                     val dbcardList = db.getAllCards(userId, deckId)
                     updateData(dbcardList)
                     true

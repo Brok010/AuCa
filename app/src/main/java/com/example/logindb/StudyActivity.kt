@@ -1,17 +1,29 @@
 package com.example.logindb
 
+import android.media.MediaPlayer
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.View
 import android.widget.Button
+import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import com.example.logindb.databinding.ActivityStudyBinding
 import java.io.File
+import java.io.IOException
 
 class StudyActivity : AppCompatActivity() {
     private lateinit var binding: ActivityStudyBinding
     private lateinit var db:DatabaseHelper
-
+    private lateinit var topCardContainer: LinearLayout
+    private lateinit var bottomCardContainer: LinearLayout
+    private lateinit var topCardView: TextView
+    private lateinit var bottomCardView: TextView
+    private lateinit var playBtTop: ImageButton
+    private lateinit var playBtBottom: ImageButton
+    private lateinit var mediaPlayerTop: MediaPlayer
+    private lateinit var mediaPlayerBottom: MediaPlayer
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityStudyBinding.inflate(layoutInflater)
@@ -26,31 +38,46 @@ class StudyActivity : AppCompatActivity() {
             throw IllegalArgumentException("Invalid userId or deckId")
         }
 
+        topCardContainer = findViewById(R.id.cardTopContainer)
+        bottomCardContainer = findViewById(R.id.cardBottomContainer)
+        topCardView = findViewById(R.id.top_card_view)
+        bottomCardView = findViewById(R.id.bottom_card_view)
+        playBtTop= findViewById(R.id.play_bt_top)
+        playBtBottom= findViewById(R.id.play_bt_bot)
+
+
         // Load and display the initial card
         var cardId = displayTopCard(userId, deckId)
 
         // Set up button click listeners
-        findViewById<TextView>(R.id.top_card_view).setOnClickListener {
+        findViewById<LinearLayout>(R.id.cardTopContainer).setOnClickListener {
+            stopMediaPlayer()
             displayBottomCard(userId, deckId, cardId)
         }
 
-        findViewById<TextView>(R.id.bottom_card_view).setOnClickListener {
+        findViewById<LinearLayout>(R.id.cardBottomContainer).setOnClickListener {
+            stopMediaPlayer()
             displayBottomCard(userId, deckId, cardId)
         }
 
         findViewById<Button>(R.id.btnGood).setOnClickListener {
+            stopMediaPlayer()
             cardId =  displayAnotherCardSequence(userId, deckId, cardId, "Good")
         }
 
         findViewById<Button>(R.id.btnAverage).setOnClickListener {
+            stopMediaPlayer()
             cardId = displayAnotherCardSequence(userId, deckId, cardId, "Avg")
+
         }
 
         findViewById<Button>(R.id.btnBad).setOnClickListener {
+            stopMediaPlayer()
             cardId = displayAnotherCardSequence(userId, deckId, cardId, "Bad")
         }
 
         findViewById<Button>(R.id.btnQuit).setOnClickListener {
+            stopMediaPlayer()
             finish()
         }
     }
@@ -81,46 +108,94 @@ class StudyActivity : AppCompatActivity() {
         }
     }
     private fun displayTopCard(userId: Int, deckId: Int) : Int{
-//        val db = DatabaseHelper(this) // Initialize the database helper
-//        var cardId = -1
-//        try {
-//            val card = db.getCardContents(userId, deckId)
-//             if (card != null) {
-//                if (card.cardTop is String) {
-//                    binding.topCardView.text = card.cardTop as String
-//
-//                } else if (card.cardTop is File) {
-//                    val audioFile = card.cardTop as File
-//
-//                    // TODO: Implement logic to play audio file using MediaPlayer or other audio player
-//                    // Example: playAudio(audioFile)
-//                }
-//                cardId = card.id
-//            }
-//        } finally {
-//            db.close() // Close the database in a finally block to ensure it's always closed
-//            return cardId
-//        }
-        return 0
+        val card = db.getCardContents(userId, deckId) // gets a card that has timeout on 0
+
+        //set the text views
+        if (card != null) {
+            if (card.cardTop != "" && card.cardTop != null) {
+                topCardView.text = card.cardTop
+            } else {
+                topCardView.text = "None"
+            }
+            // set the player
+            val filepath = card.cardTopFilePath
+            if (filepath.isNotEmpty() && filepath != null && filepath != "") {
+                mediaPlayerTop = MediaPlayer()
+                mediaPlayerSetup(card.cardTopFilePath ,mediaPlayerTop)
+                //set bt
+                playBtTop.visibility = View.VISIBLE
+                playBtTop.setOnClickListener{
+                    playBtClick(mediaPlayerTop, card.cardTopFilePath)
+                }
+
+            } else {
+                playBtTop.visibility = View.GONE
+            }
+
+            return card.id
+        } else {
+            // Handle the case where card is null
+            throw Exception("Card is null")
+        }
     }
 
     private fun displayBottomCard(userId: Int, deckId: Int, cardId: Int) {
-//        val db = DatabaseHelper(this) // Initialize the database helper
-//
-//        try {
-//            val card = db.getCardContents(userId, deckId, cardId)
-//
-//            if (card.cardBottom is String) {
-//                binding.bottomCardView.text = card.cardBottom as String
-//
-//            } else if (card.cardBottom is File) {
-//                val audioFile = card.cardBottom as File
-//
-//                // TODO: Implement logic to play audio file using MediaPlayer or other audio player
-//                // Example: playAudio(audioFile)
-//            }
-//        } finally {
-//            db.close() // Close the database in a finally block to ensure it's always closed
-//        }
+        val card = db.getCardContents(userId, deckId, cardId)
+
+        //set the text views
+        if (card.cardBottom != "" && card.cardBottom != null) {
+            bottomCardView.text = card.cardBottom
+        } else {
+            bottomCardView.text = "None"
+        }
+
+        //set the player
+        val filepath = card.cardBottomFilePath
+        if (filepath.isNotEmpty() && filepath != null && filepath != "") {
+            playBtBottom.visibility = View.VISIBLE
+            mediaPlayerBottom = MediaPlayer()
+
+            // if top player is running stop it
+            stopMediaPlayer()
+            mediaPlayerSetup(card.cardBottomFilePath ,mediaPlayerBottom)
+            playBtBottom.setOnClickListener{
+                playBtClick(mediaPlayerBottom, card.cardBottomFilePath)
+            }
+
+        } else {
+            playBtBottom.visibility = View.GONE
+        }
     }
+
+    fun playBtClick (mediaPlayer: MediaPlayer, path: String) {
+        stopMediaPlayer()
+        mediaPlayer.reset()
+        mediaPlayer.setDataSource(path)
+        mediaPlayer.prepare()
+        mediaPlayer.start()
+    }
+    private fun stopMediaPlayer() {
+        if (::mediaPlayerTop.isInitialized && mediaPlayerTop.isPlaying) {
+            mediaPlayerTop.stop()
+        }
+        if (::mediaPlayerBottom.isInitialized && mediaPlayerBottom.isPlaying) {
+            mediaPlayerBottom.stop()
+        }
+    }
+    private fun mediaPlayerSetup(filepath: String, mediaPlayer: MediaPlayer ){
+        try {
+
+            // Set the data source to the file path
+            mediaPlayer.setDataSource(filepath)
+
+            // Prepare and start the media player
+            mediaPlayer.prepare()
+            mediaPlayer.start()
+
+        } catch (e: IOException) {
+            // Handle the exception, e.g., file not found or unable to play
+            e.printStackTrace()
+        }
+    }
+
 }
