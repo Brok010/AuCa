@@ -22,17 +22,6 @@
             android:layout_weight="6">
 
         </EditText>
-        <TextView
-            android:id="@+id/tw_file_name_top"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:hint="File name"
-            android:text=""
-            android:layout_weight="2"
-            android:gravity="center">
-
-        </TextView>
-
         <ImageButton
             android:id="@+id/file_image_top"
             android:layout_width="wrap_content"
@@ -56,17 +45,6 @@
             android:layout_weight="6">
 
         </EditText>
-        <TextView
-            android:id="@+id/tw_file_name_bottom"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:hint="File name"
-            android:text=""
-            android:layout_weight="2"
-            android:gravity="center">
-
-        </TextView>
-
         <ImageButton
             android:id="@+id/file_image_bottom"
             android:layout_width="wrap_content"

@@ -6,6 +6,7 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import android.util.Log
 import android.widget.Toast
 import com.example.logindb.Classes.Card
 import com.example.logindb.Classes.Deck
@@ -30,8 +31,10 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
 
     private val CREATE_TABLE_CARD = "CREATE TABLE $TABLE_CARD (" +
             "$COL_CARD_ID INTEGER PRIMARY KEY AUTOINCREMENT, " +
-            "$COL_CARD_TOP BLOB, " +
-            "$COL_CARD_BOTTOM BLOB, " +
+            "$COL_CARD_TOP TEXT, " +
+            "$COL_CARD_BOTTOM TEXT, " +
+            "$COL_CARD_TOP_FILE_PATH TEXT, " +
+            "$COL_CARD_BOTTOM_FILE_PATH TEXT, " +
             "$COL_DECK_ID_FK INTEGER, " +
             "$COL_CARD_USER_ID_FK INTEGER, " +
             "$COL_CARD_TIMEOUT INTEGER, " +
@@ -265,11 +268,13 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
                 val cardId = cursor.getInt(cursor.getColumnIndex(COL_CARD_ID))
                 val cardTop = cursor.getString(cursor.getColumnIndex(COL_CARD_TOP))
                 val cardBottom = cursor.getString(cursor.getColumnIndex(COL_CARD_BOTTOM))
+                val cardTopFilePath = cursor.getString(cursor.getColumnIndex(COL_CARD_TOP_FILE_PATH))
+                val cardBottomFilePath = cursor.getString(cursor.getColumnIndex(COL_CARD_BOTTOM_FILE_PATH))
                 val cardTimeout = cursor.getLong(cursor.getColumnIndex(COL_CARD_TIMEOUT))
                 val cardLastUpdateTime = cursor.getLong(cursor.getColumnIndex(COL_CARD_LAST_UPDATE_TIME))
                 val cardCoefficient = cursor.getDouble(cursor.getColumnIndex(COL_CARD_COEFFICIENT))
 
-                val card = Card(userId, deckId, cardId, cardTop, cardBottom, cardTimeout, cardLastUpdateTime, cardCoefficient)
+                val card = Card(userId, deckId, cardId, cardTop, cardBottom, cardTopFilePath, cardBottomFilePath, cardTimeout, cardLastUpdateTime, cardCoefficient)
                 cards.add(card)
             }
         } catch (e: Exception) {
@@ -407,41 +412,31 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         return cardCount
     }
 
-    fun addCard(userId: Int, deckId: Int, topCard: Any?, bottomCard: Any?) {
+    fun addCard(userId: Int, deckId: Int, topCard: String, bottomCard: String, pathTop: String, pathBottom: String) {
         val db = this.writableDatabase
         val contentValues = ContentValues()
 
-        // Convert and insert topCard
-        when (topCard) {
-            is String -> contentValues.put(COL_CARD_TOP, topCard)
-            is File -> {
-                val fileInputStream = FileInputStream(topCard)
-                val buffer = ByteArray(fileInputStream.available())
-                fileInputStream.read(buffer)
-                contentValues.put(COL_CARD_TOP, buffer)
-                fileInputStream.close()
-            }
-        }
-
-        // Convert and insert bottomCard
-        when (bottomCard) {
-            is String -> contentValues.put(COL_CARD_BOTTOM, bottomCard)
-            is File -> {
-                val fileInputStream = FileInputStream(bottomCard)
-                val buffer = ByteArray(fileInputStream.available())
-                fileInputStream.read(buffer)
-                contentValues.put(COL_CARD_BOTTOM, buffer)
-                fileInputStream.close()
-            }
-        }
-
+        contentValues.put(COL_CARD_TOP, topCard)
+        contentValues.put(COL_CARD_BOTTOM, bottomCard)
+        contentValues.put(COL_CARD_TOP_FILE_PATH, pathTop)
+        contentValues.put(COL_CARD_BOTTOM_FILE_PATH, pathBottom)
         contentValues.put(COL_CARD_COEFFICIENT, 2.0)
         contentValues.put(COL_CARD_TIMEOUT, 0)
         contentValues.put(COL_DECK_ID_FK, deckId)
         contentValues.put(COL_CARD_USER_ID_FK, userId)
 
+
         // Insert into database
-        db.insert(TABLE_CARD, null, contentValues)
+        val result = db.insert(TABLE_CARD, null, contentValues)
+
+        if (result == -1L) {
+            // Insertion failed, handle the error (e.g., log, show a message)
+            Log.e("Database", "Error inserting card into the database")
+        } else {
+            // Insertion successful
+            Log.d("Database", "Card inserted successfully")
+        }
+
         db.close()
     }
 
@@ -572,6 +567,8 @@ class DatabaseHelper(context: Context) : SQLiteOpenHelper(context, DATABASE_NAME
         private const val COL_CARD_ID = "card_id"
         private const val COL_CARD_TOP = "card_top"
         private const val COL_CARD_BOTTOM = "card_bottom"
+        private const val COL_CARD_TOP_FILE_PATH = "card_top_file_path"
+        private const val COL_CARD_BOTTOM_FILE_PATH = "card_bottom_file_path"
         private const val COL_CARD_COEFFICIENT = "card_coefficient"
         private const val COL_CARD_TIMEOUT = "card_time_out"
         private const val COL_CARD_LAST_UPDATE_TIME = "card_last_update_time"

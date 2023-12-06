@@ -5,13 +5,16 @@ package com.example.logindb
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.MimeTypeMap
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.example.logindb.databinding.ActivityAddCardBinding
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.lang.Exception
 
@@ -43,56 +46,13 @@ class CardAddActivity : AppCompatActivity() {
         val addCardButton: Button = findViewById(R.id.Add_card_bt)
         val cancelButton: Button = findViewById(R.id.cancel_button)
 
-        val cardTopText: EditText = findViewById(R.id.et_top_txt)
-        val cardBottomText: EditText = findViewById(R.id.et_bottom_txt)
-
+        val cardFilesDirectory = File(filesDir, CARD_FILES_DIRECTORY_NAME)
+        if (!cardFilesDirectory.exists()) {
+            cardFilesDirectory.mkdirs()
+        }
 
         addCardButton.setOnClickListener {
-            val topText = cardTopText.text.toString()
-            val bottomText = cardBottomText.text.toString()
-
-            //check if any file paths are loaded
-            var topCard: Any? = null
-            var bottomCard: Any? = null
-
-            if (pathTop.isNotEmpty()) {
-                // Load the file corresponding to the path
-                val file = File(pathTop)
-                if (file.exists()) {
-                    topCard = file
-                } else {
-                    Toast.makeText(this, "Top file does not exist", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-            } else if (topText.isNotEmpty()) {
-                topCard = topText
-            } else {
-                Toast.makeText(this, "Top is not filled", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            if (pathBottom.isNotEmpty()) {
-                // Load the file corresponding to the path
-                val file = File(pathBottom)
-                if (file.exists()) {
-                    bottomCard = file
-                } else {
-                    Toast.makeText(this, "Bottom file does not exist", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-            } else if (bottomText.isNotEmpty()) {
-                bottomCard = bottomText
-            } else {
-                Toast.makeText(this, "Bottom is not filled", Toast.LENGTH_SHORT).show()
-                return@setOnClickListener
-            }
-
-            // Call the addCard function with topCard and bottomCard
-            db.addCard(userId, deckId, topCard, bottomCard)
-            db.incrementCardCount(deckId)
-
-            //exit activity last
-            db.updateCardTimeouts(userId)
+            addCardHandler(userId, deckId, pathTop, pathBottom)
             finish()
         }
 
@@ -108,13 +68,27 @@ class CardAddActivity : AppCompatActivity() {
         }
 
         cancelButton.setOnClickListener {
+            //TODO: delete any files that were selected
             finish()
         }
     }
 
+
+    private fun showFileChooser() {
+        val intent = Intent(Intent.ACTION_GET_CONTENT)
+        intent.type = "*/*"
+        intent.addCategory(Intent.CATEGORY_OPENABLE)
+        try {
+            startActivityForResult(Intent.createChooser(intent, "Select a file"), 100)
+        } catch (exception: Exception) {
+            Toast.makeText(this, "Please install a file manager", Toast.LENGTH_SHORT).show()
+        }
+    }
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        if (requestCode == 100 && resultCode == RESULT_OK && data != null) {
+        super.onActivityResult(requestCode, resultCode, data)
+
+        if (resultCode == RESULT_OK && data != null) {
             val uri: Uri? = data.data
 
             uri?.let {
@@ -123,16 +97,12 @@ class CardAddActivity : AppCompatActivity() {
                 } else {
                     it.path
                 }
-
                 if (path != null) {
-                    val file = File(path)
                     when (position) {
                         "top" -> {
-                            binding.twFileNameTop.text = "Path: $path File name: ${file.name}".trimIndent()
                             pathTop = path
                         }
                         "bottom" -> {
-                            binding.twFileNameBottom.text = "Path: $path File name: ${file.name}".trimIndent()
                             pathBottom = path
                         }
                     }
@@ -141,28 +111,17 @@ class CardAddActivity : AppCompatActivity() {
                 }
             }
         }
-        super.onActivityResult(requestCode, resultCode, data)
     }
-
-    private fun showFileChooser() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT)
-        intent.type = "*/*"
-        intent.addCategory(Intent.CATEGORY_OPENABLE)
-        try {
-            startActivityForResult(Intent.createChooser(intent, "Select a file"), 100)
-        }catch (exception: Exception) {
-            Toast.makeText(this, "Please install a file manager", Toast.LENGTH_SHORT).show()
-        }
-    }
-
     private fun isContentUri(uri: Uri): Boolean {
         return "content" == uri.scheme
     }
 
-    private fun copyFileFromContentUri(contentUri: Uri): String? {
-        val inputStream = contentResolver.openInputStream(contentUri)
-        val fileName = "${System.currentTimeMillis()}.mp3" // or use appropriate file extension
-        val outputFile = File(cacheDir, fileName)
+    // takes the file and copies it into my apps dir
+    private fun copyFileFromContentUri(uri: Uri): String? {
+        val inputStream = contentResolver.openInputStream(uri)
+        val fileExtension = getFileExtension(uri) ?: ""
+        val fileName = "${System.currentTimeMillis()}.$fileExtension"
+        val outputFile = File(filesDir, fileName)
         val outputStream = FileOutputStream(outputFile)
 
         inputStream?.use { input ->
@@ -172,5 +131,58 @@ class CardAddActivity : AppCompatActivity() {
         }
 
         return outputFile.absolutePath
+    }
+
+    private fun getFileExtension(uri: Uri): String? {
+        val contentResolver = contentResolver
+        val mimeTypeMap = MimeTypeMap.getSingleton()
+        return mimeTypeMap.getExtensionFromMimeType(contentResolver.getType(uri))
+    }
+
+    fun addCardHandler(
+        userId: Int,
+        deckId: Int,
+        pathTop: String,
+        pathBottom: String,
+    ) {
+        val cardTopText: EditText = findViewById(R.id.et_top_txt)
+        val cardBottomText: EditText = findViewById(R.id.et_bottom_txt)
+        val topText = cardTopText.text.toString().trim()
+        val bottomText = cardBottomText.text.toString().trim()
+        var topCard: String = ""
+        var bottomCard: String = ""
+
+
+        // Check if either path or text is provided
+        if (pathTop.isEmpty() && topText.isEmpty()) {
+            Toast.makeText(this, "Please provide information for Card Top", Toast.LENGTH_SHORT)
+                .show()
+            return
+        }
+        if (pathBottom.isEmpty() && bottomText.isEmpty()) {
+            Toast.makeText(this, "Please provide information for Card Bottom", Toast.LENGTH_SHORT)
+                .show()
+            return
+        }
+        if (pathTop.isEmpty() && topText.isEmpty() && pathBottom.isEmpty() && bottomText.isEmpty()) {
+            Toast.makeText(this, "Provide more information", Toast.LENGTH_SHORT).show()
+            return
+        }
+        //if there is txt
+        if (topText.isNotEmpty()){
+            topCard = topText
+        }
+        if (bottomText.isNotEmpty()) {
+            bottomCard = bottomText
+        }
+
+        if (topCard != null && bottomCard != null) {
+            db.addCard(userId, deckId, topCard, bottomCard, pathTop, pathBottom)
+        }
+    }
+
+
+    companion object {
+        private const val CARD_FILES_DIRECTORY_NAME = "CardFiles"
     }
 }

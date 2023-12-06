@@ -52,17 +52,17 @@ class CardAdapter(private val cardList: MutableList<Card>,
         private val tvCardCount: TextView = itemView.findViewById(R.id.tv_value_card_time_out)
 
         fun bind(card: Card) {
-            when (card.cardTop) {
-                is String -> tvCardTop.text = card.cardTop.toString()
-                is File -> tvCardTop.text = "Audio File"
-                else -> throw IllegalArgumentException("Unsupported cardTop type")
-            }
-
-            val cardTimeoutInSeconds = db.getCardTimeOut(card.id, deckId, userId)
-            val cardTimeoutInHours = cardTimeoutInSeconds / 3600.0
-
-            val formattedTimeout = String.format("%.2f", cardTimeoutInHours)
-            tvCardCount.text = formattedTimeout
+//            when (card.cardTop) {
+//                is String -> tvCardTop.text = card.cardTop.toString()
+//                is File -> tvCardTop.text = "Audio File"
+//                else -> throw IllegalArgumentException("Unsupported cardTop type")
+//            }
+//
+//            val cardTimeoutInSeconds = db.getCardTimeOut(card.id, deckId, userId)
+//            val cardTimeoutInHours = cardTimeoutInSeconds / 3600.0
+//
+//            val formattedTimeout = String.format("%.2f", cardTimeoutInHours)
+//            tvCardCount.text = formattedTimeout
         }
     }
     private fun showPopupMenu(view: View, card: Card, userId: Int, deckId: Int) {

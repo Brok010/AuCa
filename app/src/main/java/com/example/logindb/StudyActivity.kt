@@ -2,6 +2,7 @@ package com.example.logindb
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.KeyEvent
 import android.widget.Button
 import android.widget.TextView
 import com.example.logindb.databinding.ActivityStudyBinding
@@ -53,6 +54,22 @@ class StudyActivity : AppCompatActivity() {
             finish()
         }
     }
+    override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
+        when (keyCode) {
+            KeyEvent.KEYCODE_VOLUME_UP -> {
+                // Volume up button pressed, simulate a click on the "Good" button
+                findViewById<Button>(R.id.btnGood).performClick()
+                return true
+            }
+            KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                // Volume down button pressed, simulate a click on the "Bad" button
+                findViewById<Button>(R.id.btnBad).performClick()
+                return true
+            }
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
     private fun displayAnotherCardSequence(userId: Int, deckId: Int, cardId: Int, feedback: String): Int{
         db.updateTimeout(userId, deckId, cardId, feedback)
         db.updateCoefficient(userId, deckId, cardId, feedback)
@@ -64,45 +81,46 @@ class StudyActivity : AppCompatActivity() {
         }
     }
     private fun displayTopCard(userId: Int, deckId: Int) : Int{
-        val db = DatabaseHelper(this) // Initialize the database helper
-        var cardId = -1
-        try {
-            val card = db.getCardContents(userId, deckId)
-             if (card != null) {
-                if (card.cardTop is String) {
-                    binding.topCardView.text = card.cardTop as String
-
-                } else if (card.cardTop is File) {
-                    val audioFile = card.cardTop as File
-
-                    // TODO: Implement logic to play audio file using MediaPlayer or other audio player
-                    // Example: playAudio(audioFile)
-                }
-                cardId = card.id
-            }
-        } finally {
-            db.close() // Close the database in a finally block to ensure it's always closed
-            return cardId
-        }
+//        val db = DatabaseHelper(this) // Initialize the database helper
+//        var cardId = -1
+//        try {
+//            val card = db.getCardContents(userId, deckId)
+//             if (card != null) {
+//                if (card.cardTop is String) {
+//                    binding.topCardView.text = card.cardTop as String
+//
+//                } else if (card.cardTop is File) {
+//                    val audioFile = card.cardTop as File
+//
+//                    // TODO: Implement logic to play audio file using MediaPlayer or other audio player
+//                    // Example: playAudio(audioFile)
+//                }
+//                cardId = card.id
+//            }
+//        } finally {
+//            db.close() // Close the database in a finally block to ensure it's always closed
+//            return cardId
+//        }
+        return 0
     }
 
     private fun displayBottomCard(userId: Int, deckId: Int, cardId: Int) {
-        val db = DatabaseHelper(this) // Initialize the database helper
-
-        try {
-            val card = db.getCardContents(userId, deckId, cardId)
-
-            if (card.cardBottom is String) {
-                binding.bottomCardView.text = card.cardBottom as String
-
-            } else if (card.cardBottom is File) {
-                val audioFile = card.cardBottom as File
-
-                // TODO: Implement logic to play audio file using MediaPlayer or other audio player
-                // Example: playAudio(audioFile)
-            }
-        } finally {
-            db.close() // Close the database in a finally block to ensure it's always closed
-        }
+//        val db = DatabaseHelper(this) // Initialize the database helper
+//
+//        try {
+//            val card = db.getCardContents(userId, deckId, cardId)
+//
+//            if (card.cardBottom is String) {
+//                binding.bottomCardView.text = card.cardBottom as String
+//
+//            } else if (card.cardBottom is File) {
+//                val audioFile = card.cardBottom as File
+//
+//                // TODO: Implement logic to play audio file using MediaPlayer or other audio player
+//                // Example: playAudio(audioFile)
+//            }
+//        } finally {
+//            db.close() // Close the database in a finally block to ensure it's always closed
+//        }
     }
 }
