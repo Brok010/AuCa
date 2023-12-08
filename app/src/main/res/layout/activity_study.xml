@@ -6,6 +6,19 @@
     android:orientation="vertical">
 
     <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="right">
+
+        <Switch
+            android:id="@+id/mode_switch"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+        </Switch>
+
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/cardTopContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -27,6 +40,7 @@
             android:layout_height="wrap_content"
             android:visibility="gone"
             app:srcCompat="@android:drawable/ic_media_play" />
+
     </LinearLayout>
 
     <LinearLayout

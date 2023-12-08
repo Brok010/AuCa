@@ -1,16 +1,20 @@
 package com.example.logindb
 
+import android.content.Context
+import android.content.Intent
 import android.media.MediaPlayer
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.os.Handler
+import android.os.PowerManager
 import android.view.KeyEvent
 import android.view.View
 import android.widget.Button
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.Switch
 import android.widget.TextView
 import com.example.logindb.databinding.ActivityStudyBinding
-import java.io.File
 import java.io.IOException
 
 class StudyActivity : AppCompatActivity() {
@@ -24,13 +28,28 @@ class StudyActivity : AppCompatActivity() {
     private lateinit var playBtBottom: ImageButton
     private lateinit var mediaPlayerTop: MediaPlayer
     private lateinit var mediaPlayerBottom: MediaPlayer
+    private lateinit var btnGood: Button
+    private lateinit var btnBad: Button
+    lateinit var modeSwitch: Switch
+    private var bottomCardViewCheck: Boolean = false
+    private lateinit var volumeKeyService: Intent
+    private lateinit var wakeLock: PowerManager.WakeLock
+    @Volatile
+    private var stopThread = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityStudyBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        db = DatabaseHelper(this)
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ON_AFTER_RELEASE,
+            "MyApp::StudyActivity"
+        )
+        wakeLock.acquire()
 
+        db = DatabaseHelper(this)
         val userId: Int = intent.getStringExtra("USER_ID")?.toIntOrNull() ?: -1
         val deckId: Int = intent.getStringExtra("DECK_ID")?.toIntOrNull() ?: -1
 
@@ -44,6 +63,9 @@ class StudyActivity : AppCompatActivity() {
         bottomCardView = findViewById(R.id.bottom_card_view)
         playBtTop= findViewById(R.id.play_bt_top)
         playBtBottom= findViewById(R.id.play_bt_bot)
+        modeSwitch = findViewById(R.id.mode_switch)
+        btnGood = findViewById<Button>(R.id.btnGood)
+        btnBad = findViewById<Button>(R.id.btnBad)
 
 
         // Load and display the initial card
@@ -51,56 +73,124 @@ class StudyActivity : AppCompatActivity() {
 
         // Set up button click listeners
         findViewById<LinearLayout>(R.id.cardTopContainer).setOnClickListener {
-            stopMediaPlayer()
+            releaseMediaPlayers()
             displayBottomCard(userId, deckId, cardId)
         }
 
         findViewById<LinearLayout>(R.id.cardBottomContainer).setOnClickListener {
-            stopMediaPlayer()
+            releaseMediaPlayers()
             displayBottomCard(userId, deckId, cardId)
         }
 
-        findViewById<Button>(R.id.btnGood).setOnClickListener {
-            stopMediaPlayer()
-            cardId =  displayAnotherCardSequence(userId, deckId, cardId, "Good")
+        btnGood.setOnClickListener {
+            if (!::mediaPlayerBottom.isInitialized || !mediaPlayerBottom.isPlaying) {
+                stopMediaPlayer()
+                val newCardId = botCardCheck(userId, deckId, cardId, "Good")
+                if (newCardId != 0) cardId = newCardId
+            // if the player is playing
+            }else {
+                stopMediaPlayer()
+                cardId = displayAnotherCardSequence(userId, deckId, cardId, "Good")
+            }
         }
 
         findViewById<Button>(R.id.btnAverage).setOnClickListener {
-            stopMediaPlayer()
-            cardId = displayAnotherCardSequence(userId, deckId, cardId, "Avg")
-
+            if (!::mediaPlayerBottom.isInitialized || !mediaPlayerBottom.isPlaying) {
+                stopMediaPlayer()
+                val newCardId = botCardCheck(userId, deckId, cardId, "Avg")
+                if (newCardId != 0) cardId = newCardId
+                // if the player is playing
+            }else {
+                stopMediaPlayer()
+                cardId = displayAnotherCardSequence(userId, deckId, cardId, "Avg")
+            }
         }
 
-        findViewById<Button>(R.id.btnBad).setOnClickListener {
-            stopMediaPlayer()
-            cardId = displayAnotherCardSequence(userId, deckId, cardId, "Bad")
+        btnBad.setOnClickListener {
+            if (!::mediaPlayerBottom.isInitialized || !mediaPlayerBottom.isPlaying) {
+                stopMediaPlayer()
+                val newCardId = botCardCheck(userId, deckId, cardId, "Bad")
+                if (newCardId != 0) cardId = newCardId
+                // if the player is playing
+            }else {
+                stopMediaPlayer()
+                cardId = displayAnotherCardSequence(userId, deckId, cardId, "Bad")
+            }
         }
 
         findViewById<Button>(R.id.btnQuit).setOnClickListener {
-            stopMediaPlayer()
+            releaseMediaPlayers()
             finish()
         }
     }
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        when (keyCode) {
-            KeyEvent.KEYCODE_VOLUME_UP -> {
-                // Volume up button pressed, simulate a click on the "Good" button
-                findViewById<Button>(R.id.btnGood).performClick()
-                return true
-            }
-            KeyEvent.KEYCODE_VOLUME_DOWN -> {
-                // Volume down button pressed, simulate a click on the "Bad" button
-                findViewById<Button>(R.id.btnBad).performClick()
-                return true
-            }
-        }
-        return super.onKeyDown(keyCode, event)
-    }
+        val switchState = modeSwitch.isChecked
 
+        return when {
+            switchState && keyCode == KeyEvent.KEYCODE_VOLUME_UP -> {
+                // Volume up button pressed and switch is ON, simulate a click on the "Good" button
+                findViewById<Button>(R.id.btnGood).performClick()
+                true
+            }
+
+            switchState && keyCode == KeyEvent.KEYCODE_VOLUME_DOWN -> {
+                // Volume down button pressed and switch is ON, simulate a click on the "Bad" button
+                findViewById<Button>(R.id.btnBad).performClick()
+                true
+            }
+
+            else -> super.onKeyDown(keyCode, event)
+        }
+    }
+    override fun onDestroy() {
+        wakeLock.release()
+        stopThread = true
+        super.onDestroy()
+    }
+    interface MediaPlayerCallback {
+        fun onMediaPlayerFinished()
+    }
+    // checks if the new card was
+    private fun botCardCheck (userId: Int, deckId: Int, cardId: Int, feedback: String): Int {
+        var newCardId: Int = 0
+
+        if (bottomCardViewCheck == true) {
+            bottomCardViewCheck = false
+            newCardId = displayAnotherCardSequence(userId, deckId, cardId, feedback)
+
+        // if it hasnt been seen we show it and if there is a mediaplayer we play it
+        } else {
+            val mediaPlayerBot = displayBottomCard(userId, deckId, cardId)
+
+            if (mediaPlayerBot.isPlaying) {
+                // Set up a callback for when mediaPlayerBot finishes playing
+                val mediaPlayerCallback = object : MediaPlayerCallback {
+                    override fun onMediaPlayerFinished() {
+                        // Code to execute after mediaPlayerBot finishes playing
+                        newCardId = displayAnotherCardSequence(userId, deckId, cardId, feedback)
+                    }
+                }
+
+                // Wait for mediaPlayerBot to finish playing using Handler
+                val handler = Handler()
+                handler.postDelayed({
+                    // Notify the callback that mediaPlayerBot has finished playing
+                    mediaPlayerCallback.onMediaPlayerFinished()
+                }, mediaPlayerBot.duration.toLong())
+
+            }else newCardId = displayAnotherCardSequence(userId, deckId, cardId, feedback)
+        }
+        return newCardId
+    }
     private fun displayAnotherCardSequence(userId: Int, deckId: Int, cardId: Int, feedback: String): Int{
+        releaseMediaPlayers()
         db.updateTimeout(userId, deckId, cardId, feedback)
         db.updateCoefficient(userId, deckId, cardId, feedback)
         if (db.getReadyCardCount(deckId) > 0) {
+            // reset the bottomview
+            bottomCardView.text = ""
+            playBtBottom.visibility = View.GONE
+            // resets the topview
             return displayTopCard(userId, deckId)
         }else{
             finish()
@@ -115,7 +205,7 @@ class StudyActivity : AppCompatActivity() {
             if (card.cardTop != "" && card.cardTop != null) {
                 topCardView.text = card.cardTop
             } else {
-                topCardView.text = "None"
+                topCardView.text = ""
             }
             // set the player
             val filepath = card.cardTopFilePath
@@ -139,24 +229,22 @@ class StudyActivity : AppCompatActivity() {
         }
     }
 
-    private fun displayBottomCard(userId: Int, deckId: Int, cardId: Int) {
+    private fun displayBottomCard(userId: Int, deckId: Int, cardId: Int): MediaPlayer {
         val card = db.getCardContents(userId, deckId, cardId)
 
         //set the text views
         if (card.cardBottom != "" && card.cardBottom != null) {
             bottomCardView.text = card.cardBottom
         } else {
-            bottomCardView.text = "None"
+            bottomCardView.text = ""
         }
 
         //set the player
+        mediaPlayerBottom = MediaPlayer()
         val filepath = card.cardBottomFilePath
+
         if (filepath.isNotEmpty() && filepath != null && filepath != "") {
             playBtBottom.visibility = View.VISIBLE
-            mediaPlayerBottom = MediaPlayer()
-
-            // if top player is running stop it
-            stopMediaPlayer()
             mediaPlayerSetup(card.cardBottomFilePath ,mediaPlayerBottom)
             playBtBottom.setOnClickListener{
                 playBtClick(mediaPlayerBottom, card.cardBottomFilePath)
@@ -165,9 +253,11 @@ class StudyActivity : AppCompatActivity() {
         } else {
             playBtBottom.visibility = View.GONE
         }
+        bottomCardViewCheck = true
+        return mediaPlayerBottom
     }
 
-    fun playBtClick (mediaPlayer: MediaPlayer, path: String) {
+    private fun playBtClick (mediaPlayer: MediaPlayer, path: String) {
         stopMediaPlayer()
         mediaPlayer.reset()
         mediaPlayer.setDataSource(path)
@@ -184,7 +274,6 @@ class StudyActivity : AppCompatActivity() {
     }
     private fun mediaPlayerSetup(filepath: String, mediaPlayer: MediaPlayer ){
         try {
-
             // Set the data source to the file path
             mediaPlayer.setDataSource(filepath)
 
@@ -197,5 +286,21 @@ class StudyActivity : AppCompatActivity() {
             e.printStackTrace()
         }
     }
+    private fun releaseMediaPlayers() {
+        if (::mediaPlayerTop.isInitialized) {
+            if (mediaPlayerTop.isPlaying) {
+                mediaPlayerTop.stop()
+            }
+            mediaPlayerTop.release()
+            mediaPlayerTop = MediaPlayer()
+        }
 
+        if (::mediaPlayerBottom.isInitialized) {
+            if (mediaPlayerBottom.isPlaying) {
+                mediaPlayerBottom.stop()
+            }
+            mediaPlayerBottom.release()
+            mediaPlayerBottom = MediaPlayer()
+        }
+    }
 }
