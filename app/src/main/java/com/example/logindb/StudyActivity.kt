@@ -1,7 +1,6 @@
 package com.example.logindb
 
 import android.content.Context
-import android.content.Intent
 import android.media.MediaPlayer
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -32,11 +31,7 @@ class StudyActivity : AppCompatActivity() {
     private lateinit var btnBad: Button
     lateinit var modeSwitch: Switch
     private var bottomCardViewCheck: Boolean = false
-    private lateinit var volumeKeyService: Intent
     private lateinit var wakeLock: PowerManager.WakeLock
-    @Volatile
-    private var stopThread = false
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityStudyBinding.inflate(layoutInflater)
@@ -66,7 +61,6 @@ class StudyActivity : AppCompatActivity() {
         modeSwitch = findViewById(R.id.mode_switch)
         btnGood = findViewById<Button>(R.id.btnGood)
         btnBad = findViewById<Button>(R.id.btnBad)
-
 
         // Load and display the initial card
         var cardId = displayTopCard(userId, deckId)
@@ -111,7 +105,6 @@ class StudyActivity : AppCompatActivity() {
                 stopMediaPlayer()
                 val newCardId = botCardCheck(userId, deckId, cardId, "Bad")
                 if (newCardId != 0) cardId = newCardId
-                // if the player is playing
             }else {
                 stopMediaPlayer()
                 cardId = displayAnotherCardSequence(userId, deckId, cardId, "Bad")
@@ -144,7 +137,6 @@ class StudyActivity : AppCompatActivity() {
     }
     override fun onDestroy() {
         wakeLock.release()
-        stopThread = true
         super.onDestroy()
     }
     interface MediaPlayerCallback {
@@ -154,7 +146,7 @@ class StudyActivity : AppCompatActivity() {
     private fun botCardCheck (userId: Int, deckId: Int, cardId: Int, feedback: String): Int {
         var newCardId: Int = 0
 
-        if (bottomCardViewCheck == true) {
+        if (bottomCardViewCheck) {
             bottomCardViewCheck = false
             newCardId = displayAnotherCardSequence(userId, deckId, cardId, feedback)
 
@@ -187,10 +179,10 @@ class StudyActivity : AppCompatActivity() {
         db.updateTimeout(userId, deckId, cardId, feedback)
         db.updateCoefficient(userId, deckId, cardId, feedback)
         if (db.getReadyCardCount(deckId) > 0) {
-            // reset the bottomview
+            // reset the bottom-view
             bottomCardView.text = ""
             playBtBottom.visibility = View.GONE
-            // resets the topview
+            // resets the top-view
             return displayTopCard(userId, deckId)
         }else{
             finish()
